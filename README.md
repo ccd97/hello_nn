@@ -10,4 +10,5 @@ The programs depends upon following dependencies:
 
 * Python 3.5+
    * Numpy
+   * Matplotlib
    * Tensorflow
