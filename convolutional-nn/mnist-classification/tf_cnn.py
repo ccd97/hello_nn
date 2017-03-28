@@ -22,7 +22,7 @@ con_2_features = 32
 
 learning_rate = 0.001
 
-batch_size = 100
+batch_size = 50
 
 # Input/Output Placeholders
 X = tf.placeholder(dtype=tf.float32, shape=[None, n_input_pixels])
@@ -74,12 +74,12 @@ with tf.Session() as sess:
         train_batch = mnist_data.train.next_batch(batch_size)
         _, err = sess.run([optimizer, error], feed_dict={X: train_batch[0], Y: train_batch[1]})
 
-        if i % 10 == 0:
-            test_batch = mnist_data.test.next_batch(batch_size)
-            acc = accuracy.eval({X: test_batch[0], Y: test_batch[1]})
+        if i % 100 == 0:
+            validation_batch = mnist_data.validation.next_batch(batch_size)
+            acc = accuracy.eval({X: validation_batch[0], Y: validation_batch[1]})
             print("Batch: %d Error = %f Accuracy = %f" % (i, err, acc * 100))
 
     print("*********** Test ***********")
 
-    acc = accuracy.eval({X: mnist_data.validation.images, Y: mnist_data.validation.labels})
+    acc = accuracy.eval({X: mnist_data.test.images, Y: mnist_data.test.labels})
     print("Final Accuracy = %f" % (acc * 100))
