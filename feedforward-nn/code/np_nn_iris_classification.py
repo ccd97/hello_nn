@@ -1,15 +1,20 @@
+# Import dependencies
+
 import numpy as np
 import random
 import urllib.request
 
+# Download iris dataset
 
-#################### Util Functions ####################
+urllib.request.urlretrieve(
+    "https://archive.ics.uci.edu/ml/machine-learning-databases/iris/iris.data",
+    "iris-data.txt")
 
-def download_file(url, filename):
-    urllib.request.urlretrieve(url, filename)
+# Pre-process data
 
-
-#################### Pre Process Data ####################
+# seed random-generators
+random.seed(0)
+np.random.seed(0)
 
 train_test_ratio = 0.8
 
@@ -18,12 +23,7 @@ tmp_set = set()
 features = []
 labels = []
 
-random.seed(0)
-np.random.seed(0)
-
-# Iris DataSet - https://archive.ics.uci.edu/ml/machine-learning-databases/iris/iris.data
-download_file("https://archive.ics.uci.edu/ml/machine-learning-databases/iris/iris.data", "iris-data.txt")
-
+# text-file to numpy arrays
 with open("iris-data.txt") as f:
     for line in f.readlines():
         if not line.isspace():
@@ -44,12 +44,15 @@ for line in tmp_list:
     features.append(split_line[:length_line - 1])
     labels.append(label)
 
-max_value_of_feature = max([item for i in features for item in i])
+# Scale data
+max_val = max([item for i in features for item in i])
+min_val = min([item for i in features for item in i])
 
 for i in range(len(features)):
     for j in range(len(features[0])):
-        features[i][j] = features[i][j] / max_value_of_feature
+        features[i][j] = (features[i][j] - min_val) / (max_val - min_val)
 
+# One-hot encoding
 tmp_list = list(tmp_set)
 for i in range(len(labels)):
     labels[i] = tmp_list.index(labels[i])
@@ -58,15 +61,16 @@ label_idx = np.array(labels)
 labels = np.zeros((len(labels), len(tmp_list)))
 labels[np.arange(len(labels)), label_idx] = 1
 
+# split into train-test set
 features_train = np.array(features[:int(train_test_ratio * len(features))])
 features_test = np.array(features[int(train_test_ratio * len(features)):])
 
 labels_train = labels[:int(train_test_ratio * len(labels))]
 labels_test = labels[int(train_test_ratio * len(labels)):]
 
-#################### Neural Network ####################
+# Neural Network
 
-# Parameters
+# hyper-parameters
 n_input_layers = len(features_test[0])
 n_hidden_layers = 5
 n_output_layers = len(tmp_list)
@@ -91,8 +95,8 @@ activation_f = {
 activation_f_prime = {
     'identity': lambda x: 1,
     'sigmoid': lambda x: x * (1.0 - x),
-    'tanh': lambda x: 1 - x ** 2,
-    'arctan': lambda x: 1.0 / (1.0 + np.tan(x) ** 2),
+    'tanh': lambda x: 1 - x**2,
+    'arctan': lambda x: 1.0 / (1.0 + np.tan(x)**2),
     'relu': lambda x: 1.0 * (x > 0),
     'softplus': lambda x: 1.0 - np.exp(-x),
     'sinusoid': lambda x: np.cos(np.arcsin(x)),
@@ -131,8 +135,9 @@ def train(input_features, output_label, i_h_weights, h_o_weights):
     return error, change_i_h, change_h_o
 
 
-# Function to predict (uses just forward prop)
+# Predict Function
 def predict(input_features, i_h_weights, h_o_weights):
+    # uses just forward prop
     h_inter = np.dot(input_features, i_h_weights)
     h_result = act_f1(h_inter)
     o_inter = np.dot(h_result, h_o_weights)
@@ -140,7 +145,7 @@ def predict(input_features, i_h_weights, h_o_weights):
     return (o_result >= max(o_result)).astype(int)
 
 
-#################### Train Neural Network ####################
+# Train Neural Network
 
 print("*********** Train ***********")
 
@@ -165,9 +170,10 @@ for epoch in range(n_epoch):
 
         err.append(loss)
 
-    print("Epoch: %d, Loss: %.8f" % (epoch, sum(err) / len(err)))
+    if epoch % 10 == 0:
+        print("Epoch: %d, Loss: %.8f" % (epoch, sum(err) / len(err)))
 
-#################### Test Neural Network ####################
+# Test Neural Network
 
 print("*********** Test ***********")
 
@@ -178,5 +184,5 @@ for i in range(len(features_test)):
     if np.array_equal(a, b):
         success += 1
 
-print("Total = ", len(features_test), " Success = ", success,
-      " Accuracy = ", success * 100 / len(features_test))
+print("Total = %d Success = %d Accuracy = %f" %
+      (len(features_test), success, success * 100 / len(features_test)))

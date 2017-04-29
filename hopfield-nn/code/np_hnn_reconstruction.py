@@ -1,13 +1,18 @@
+# Import dependencies
+
 import numpy as np
 import matplotlib.pyplot as plt
 
+#  Util functions
 
-#################### Util Functions ####################
-def plot_xy_images(images, title, no_i_x, no_i_y=3):
-    fig = plt.figure()
+
+# function to plot the images after during testing phase
+def plot_images(images, title, no_i_x, no_i_y=3):
+    fig = plt.figure(figsize=(10, 15))
     fig.canvas.set_window_title(title)
     images = np.array(images).reshape(-1, 5, 5)
-    images = np.pad(images, ((0, 0), (1, 1), (1, 1)), 'constant', constant_values=-1)
+    images = np.pad(
+        images, ((0, 0), (1, 1), (1, 1)), 'constant', constant_values=-1)
     for i in range(no_i_x):
         for j in range(no_i_y):
             ax = fig.add_subplot(no_i_x, no_i_y, no_i_x * j + (i + 1))
@@ -23,29 +28,46 @@ def plot_xy_images(images, title, no_i_x, no_i_y=3):
                 ax.set_title("Reconstructed")
 
 
-#################### Dummy Data ####################
-
+#  Dummy Data
 perfect_data = {
-    "P": [1, 1, 1, 1, -1, 1, -1, -1, -1, 1, 1, 1, 1, 1, -1, 1, -1, -1, -1, -1, 1, -1, -1, -1, -1],
-    "Y": [1, -1, -1, -1, 1, -1, 1, -1, 1, -1, -1, -1, 1, -1, -1, -1, -1, 1, -1, -1, -1, -1, 1, -1, -1],
-    "T": [1, 1, 1, 1, 1, -1, -1, 1, -1, -1, -1, -1, 1, -1, -1, -1, -1, 1, -1, -1, -1, -1, 1, -1, -1],
-    "H": [1, -1, -1, -1, 1, 1, -1, -1, -1, 1, 1, 1, 1, 1, 1, 1, -1, -1, -1, 1, 1, -1, -1, -1, 1],
-    "O": [1, 1, 1, 1, 1, 1, -1, -1, -1, 1, 1, -1, -1, -1, 1, 1, -1, -1, -1, 1, 1, 1, 1, 1, 1],
-    "N": [1, -1, -1, -1, 1, 1, 1, -1, -1, 1, 1, -1, 1, -1, 1, 1, -1, -1, 1, 1, 1, -1, -1, -1, 1]
+    "P": [
+        1, 1, 1, 1, -1, 1, -1, -1, -1, 1, 1, 1, 1, 1, -1, 1, -1, -1, -1, -1, 1,
+        -1, -1, -1, -1
+    ],
+    "Y": [
+        1, -1, -1, -1, 1, -1, 1, -1, 1, -1, -1, -1, 1, -1, -1, -1, -1, 1, -1,
+        -1, -1, -1, 1, -1, -1
+    ],
+    "T": [
+        1, 1, 1, 1, 1, -1, -1, 1, -1, -1, -1, -1, 1, -1, -1, -1, -1, 1, -1, -1,
+        -1, -1, 1, -1, -1
+    ],
+    "H": [
+        1, -1, -1, -1, 1, 1, -1, -1, -1, 1, 1, 1, 1, 1, 1, 1, -1, -1, -1, 1, 1,
+        -1, -1, -1, 1
+    ],
+    "O": [
+        1, 1, 1, 1, 1, 1, -1, -1, -1, 1, 1, -1, -1, -1, 1, 1, -1, -1, -1, 1, 1,
+        1, 1, 1, 1
+    ],
+    "N": [
+        1, -1, -1, -1, 1, 1, 1, -1, -1, 1, 1, -1, 1, -1, 1, 1, -1, -1, 1, 1, 1,
+        -1, -1, -1, 1
+    ]
 }
 
-################## Pre Process Data ##################
+#  Pre-Process Data
 
-# Data Parameters
+#  Data Parameters
 
-# Hopfield networks can hold about 0.138*n_neurons for better denoising
-# 0.138 * n_neurons = 0.138*25 = 3.45 ~ 3
+# Hopfield networks can hold about 0.138 \* n_neurons for better denoising <br>
+# 0.138 \* n_neurons = 0.138 \* 25 = 3.45 ~ 3 <br>
 n_train = 3
 
 n_test = 100
 
-# no of images to show in output graph
-n_train_disp = 5
+# no of images to show in output plot
+n_train_disp = 10
 
 # Amount of distortion (0 < distort < 1)
 distort = 0.1
@@ -53,10 +75,13 @@ distort = 0.1
 # Size of image(width)
 n_side = 5
 
+# No of neurons
+n_neurons = n_side * n_side
+
 train_data = [np.array(d) for d in perfect_data.values()][:n_train]
-test_data = []
 
 # Generate test data by adding noise to train data
+test_data = []
 for d in range(n_test):
     r_i = np.random.randint(0, n_train)
     base_pattern = np.array(train_data[r_i])
@@ -65,8 +90,8 @@ for d in range(n_test):
     noisy_pattern = np.multiply(base_pattern, noise)
     test_data.append((base_pattern, noisy_pattern))
 
+# Neural Network
 
-#################### Neural Network ####################
 
 # Function to train the network using Hebbian learning rule
 def train(neu, training_data):
@@ -109,9 +134,6 @@ def retrieve_pattern(weights, data, steps=10):
     return res
 
 
-# No of neurons
-n_neurons = n_side * n_side
-
 # Train
 W = train(n_neurons, train_data)
 
@@ -121,6 +143,6 @@ accuracy, op_imgs = test(W, test_data)
 # Print accuracy
 print("Accuracy of the network is %f" % (accuracy * 100))
 
-# Display test result
-plot_xy_images(op_imgs, "Reconstructed Data", n_train_disp)
+# Plot test result
+plot_images(op_imgs, "Reconstructed Data", n_train_disp)
 plt.show()
