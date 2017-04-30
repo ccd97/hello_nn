@@ -1,12 +1,15 @@
+# Import dependencies
+
 import numpy as np
-import matplotlib.pyplot as plt
 from tensorflow.examples.tutorials.mnist import input_data
+import matplotlib.pyplot as plt
+
+# Util functions
 
 
-#################### Util Functions ####################
-
-def plot_xy_images(images, title, no_i_x, no_i_y):
-    fig = plt.figure()
+# function to plot the images after during testing phase
+def plot_images(images, title, no_i_x, no_i_y=2):
+    fig = plt.figure(figsize=(5, 15))
     fig.canvas.set_window_title(title)
     images = np.array(images).reshape(-1, 28, 28)
     for i in range(no_i_x):
@@ -16,16 +19,20 @@ def plot_xy_images(images, title, no_i_x, no_i_y):
             plt.xticks(np.array([]))
             plt.yticks(np.array([]))
 
+            if j == 0 and i == 0:
+                ax.set_title("Real")
+            elif j == 0 and i == 1:
+                ax.set_title("Reconstructed")
 
-#################### Preprocess data ####################
 
+# load the mist dataset from tensorflow.examples
 mnist = input_data.read_data_sets("MNIST_data/", one_hot=True)
 features_train, labels_train, features_test, labels_test = \
     mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
 
-#################### Neural Network ####################
+# Neural Network
 
-# Parameters
+# Hyper-parameters
 n_input_layer = features_train.shape[1]
 n_hidden_layer = 500
 
@@ -34,9 +41,7 @@ learning_rate = 1.0
 n_epoch = 10
 batch_size = 100
 
-# no of images in plot (X, Y co-ordinates)
-test_x = 4
-test_y = 4
+test_disp = 10  # no of images in plot
 
 
 # Sigmoid function
@@ -44,14 +49,15 @@ def sigmoid(inp):
     return 1.0 / (1.0 + np.exp(-inp))
 
 
-# Get sample from input
+# function to get random sample from input
 def get_sample(inp):
     distr = np.random.uniform(size=inp.shape)
     sample = 1.0 * (np.sign(inp - distr) > 0)
     return sample
 
 
-# Function to train network (CD-k , k=1)
+# Function to train network
+# using contrastive-divergence-k(k = 1)
 def train(inp, w, b, c):
     # Forward pass
     p_h = sigmoid(np.dot(inp, w) + b)
@@ -81,24 +87,28 @@ def train(inp, w, b, c):
     return error, change_w, change_b, change_c
 
 
-# Regenerate image from input
+# Function to regenerate image from input
 def regenerate(inp, w, b, c):
     hid = sigmoid(np.dot(inp, w) + b)
     rc = sigmoid(np.dot(hid, w.T) + c)
     return rc
 
 
-#################### Train Neural Network ####################
+# Train Neural Network
 
 # Initialize random  Weights and biases
 W = np.random.uniform(0.1, size=(n_input_layer, n_hidden_layer))
 B = np.random.uniform(0.1, size=n_hidden_layer)
 C = np.random.uniform(0.1, size=n_input_layer)
 
-# Training set
+# split into batches
 X = features_train
 n_batch = X.shape[0] // batch_size
 X = np.split(X, n_batch)
+
+# train the network
+
+print("*********** Train ***********")
 
 # Epoch-training
 for epoch in range(n_epoch):
@@ -118,13 +128,13 @@ for epoch in range(n_epoch):
 
     print("Epoch: %d, Error: %.8f" % (epoch, sum(err) / len(err)))
 
-#################### Reconstruction ####################
+# Reconstruction
 
-img = []
-test_cases = test_x * test_y
-for i_no in range(test_cases):
-    img.append(regenerate(features_test[i_no], W, B, C))
+disp_imgs = []
+for i_no in range(test_disp):
+    disp_imgs.append(features_test[i_no])
+    disp_imgs.append(regenerate(features_test[i_no], W, B, C))
 
-plot_xy_images(img, "Reconstructed MNIST Data", test_x, test_y)
-plot_xy_images(features_test[:test_cases], "Original MNIST Data", test_x, test_y)
+# plot output
+plot_images(disp_imgs, "Restricted Boltzmann Machine", test_disp)
 plt.show()
