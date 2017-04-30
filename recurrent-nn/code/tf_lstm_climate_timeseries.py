@@ -1,16 +1,18 @@
-import numpy as np
-import matplotlib.pyplot as plt
-import tensorflow as tf
+# Import dependencies
 
-#################### Pre Process Data ####################
+import numpy as np
+import tensorflow as tf
+import matplotlib.pyplot as plt
+
+# Pre-process data
+
+# seed random number generators
+np.random.seed(1)
+tf.set_random_seed(1)
 
 # Paramaters
 seq_len = 25  # Sequence Length
 train_test_ratio = 0.7
-
-# seed rng
-np.random.seed(1)
-tf.set_random_seed(1)
 
 time_series = []  # float values in ppm
 time_stamps = []  # string corresponding to year-month
@@ -30,10 +32,10 @@ with open('datasets/co2-ppm-mauna-loa-19651980.csv') as f:
             except Exception as e:
                 break
 
+# Scale data
 ts_min = np.min(time_series)
 ts_max = np.max(time_series)
 
-# Scale data
 time_series = (time_series - ts_min) / (ts_max - ts_min)
 
 # Split data into train and test
@@ -51,14 +53,13 @@ def create_dataset(data, len_seq):
     return features, labels
 
 
-# Get features and labels ready
 trainX, trainY = create_dataset(train_time_series, seq_len)
 testX, testY = create_dataset(
     np.concatenate((trainX[-1], test_time_series)), seq_len)
 
-#################### Neural Network ####################
+# Neural Network
 
-# Hyper-parameters
+# hyper-parameters
 n_rnn_neurons = 50
 n_input_neurons = 1
 n_output_neurons = 1
@@ -67,7 +68,7 @@ learn_rate = 0.01
 
 n_epoch = 1000
 
-# Tensorflow placeholders
+# input/output placeholders
 X = tf.placeholder(tf.float32, [None, seq_len, n_input_neurons])
 Y = tf.placeholder(tf.float32, [None, n_output_neurons])
 
@@ -79,7 +80,9 @@ layer_op = {
     tf.Variable(tf.random_normal([n_output_neurons], stddev=1))
 }
 
-# Tensorflow model
+# Model
+
+# lstm + droput layer
 cell = tf.contrib.rnn.BasicLSTMCell(n_rnn_neurons)
 cell = tf.contrib.rnn.DropoutWrapper(cell, output_keep_prob=0.7)
 lstm_op, _ = tf.nn.dynamic_rnn(cell, X, dtype=tf.float32)
@@ -88,11 +91,15 @@ lstm_op, _ = tf.nn.dynamic_rnn(cell, X, dtype=tf.float32)
 op = tf.map_fn(lambda x: x[-1], lstm_op)
 final_op = tf.nn.sigmoid(tf.matmul(op, layer_op['weight']) + layer_op['bias'])
 
-# Error and optimizer
+# Error and Optimizer
+
+# mean-squared error
 error = tf.reduce_mean(0.5 * tf.square(final_op - Y))
+
+# adam-optimizer
 optimizer = tf.train.AdamOptimizer(learn_rate).minimize(error)
 
-# Tensor Session
+# Start Session
 with tf.Session() as sess:
     tf.global_variables_initializer().run()
 
@@ -101,55 +108,54 @@ with tf.Session() as sess:
     for epoch in range(n_epoch):
         _, err = sess.run([optimizer, error], feed_dict={X: trainX, Y: trainY})
 
-        if epoch % 10 == 0:
+        if epoch % 100 == 0:
             print("Epoch : %d Error = %f" % (epoch, err))
 
-    print("*********** Test ***********")
+    print("\n*********** Test ***********")
 
     err, resultt = sess.run([error, final_op], feed_dict={X: testX, Y: testY})
     print("Testing Error : %f" % err)
 
-    # give single starting state and use the predicted output for next input
-    print("********** Predict **********")
-
+    # Predict futur values with continuous data
     inp = trainX[-1].flatten().tolist()
     resultp = []
 
     for i in range(len(test_time_series)):
-        op = sess.run(final_op, feed_dict={X: np.reshape(inp, [1, -1, 1])})
+        op = final_op.eval({X: np.reshape(inp, [1, -1, 1])})
         inp.append(op[0][0])
         resultp.append(op[0][0])
         del inp[0]
 
-    print("Predictions in Graph")
+# Plot test and prediction output
 
-    # Plot graph with matplotlib
-    plt.plot(
-        train_time_series * (ts_max - ts_min) + ts_min,
-        'b',
-        label='training data')
-    plt.plot(
-        np.arange(len(train_time_series) - 1, len(time_series)),
-        test_time_series * (ts_max - ts_min) + ts_min,
-        'c',
-        label='expected data')
-    plt.plot(
-        np.arange(len(train_time_series) - 1, len(time_series)),
-        resultt * (ts_max - ts_min) + ts_min,
-        'm',
-        label='test output')
-    plt.plot(
-        np.arange(len(train_time_series) - 1, len(time_series)),
-        np.array(resultp) * (ts_max - ts_min) + ts_min,
-        'r',
-        label='continous prediction')
+plt.figure(figsize=(12, 8))
 
-    plt.xticks(
-        np.arange(0, len(time_series), 12),
-        time_stamps[::12],
-        rotation=70,
-        fontsize=7)
-    plt.xlabel('Month')
-    plt.ylabel('CO2 (ppm)')
-    plt.legend(loc='upper left')
-    plt.show()
+plt.plot(
+    train_time_series * (ts_max - ts_min) + ts_min,
+    'b',
+    label='training data')
+plt.plot(
+    np.arange(len(train_time_series) - 1, len(time_series)),
+    test_time_series * (ts_max - ts_min) + ts_min,
+    'c',
+    label='expected data')
+plt.plot(
+    np.arange(len(train_time_series) - 1, len(time_series)),
+    resultt * (ts_max - ts_min) + ts_min,
+    'm',
+    label='test output')
+plt.plot(
+    np.arange(len(train_time_series) - 1, len(time_series)),
+    np.array(resultp) * (ts_max - ts_min) + ts_min,
+    'r',
+    label='continous prediction')
+
+plt.xticks(
+    np.arange(0, len(time_series), 12),
+    time_stamps[::12],
+    rotation=70,
+    fontsize=7)
+plt.xlabel('Month')
+plt.ylabel('CO2 (ppm)')
+plt.legend(loc='upper left')
+plt.show()
