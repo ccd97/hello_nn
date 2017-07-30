@@ -98,3 +98,11 @@ ENV/
 
 # Datasets Folder
 MNIST_data
+
+# Temporary folder
+tmp
+temp
+
+# Hide all hidden files
+.*
+!/.gitignore

@@ -11,7 +11,7 @@ np.random.seed(1)
 tf.set_random_seed(1)
 
 # Paramaters
-seq_len = 25  # Sequence Length
+seq_len = 50  # Sequence Length
 train_test_ratio = 0.7
 
 time_series = []  # float values in ppm
@@ -60,11 +60,11 @@ testX, testY = create_dataset(
 # Neural Network
 
 # hyper-parameters
-n_rnn_neurons = 50
+n_rnn_neurons = 100
 n_input_neurons = 1
 n_output_neurons = 1
 
-learn_rate = 0.01
+learn_rate = 0.006
 
 n_epoch = 1000
 
@@ -84,12 +84,13 @@ layer_op = {
 
 # lstm + droput layer
 cell = tf.contrib.rnn.BasicLSTMCell(n_rnn_neurons)
-cell = tf.contrib.rnn.DropoutWrapper(cell, output_keep_prob=0.7)
+cell = tf.contrib.rnn.DropoutWrapper(cell, output_keep_prob=0.75)
 lstm_op, _ = tf.nn.dynamic_rnn(cell, X, dtype=tf.float32)
 
 # Just connect last output of hidden layer to fully connected layer
-op = tf.map_fn(lambda x: x[-1], lstm_op)
-final_op = tf.nn.sigmoid(tf.matmul(op, layer_op['weight']) + layer_op['bias'])
+lstm_op = tf.squeeze(lstm_op[:, -1:], axis=1)
+final_op = tf.nn.sigmoid(
+    tf.matmul(lstm_op, layer_op['weight']) + layer_op['bias'])
 
 # Error and Optimizer
 

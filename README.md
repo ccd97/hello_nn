@@ -13,20 +13,38 @@ The programs depends upon following dependencies:
    * Matplotlib
    * Tensorflow
 
-## List of Files
+## Index
 
-|Type    |Dataset used  |Problem type   |Framework  |Notebook   |Code  |
-|--------|--------------|---------------|-----------|-----------|------|
-|FeedForward Neural Network |Irsis |Classification |numpy |[ipynb](Feedforward-NeuralNet/np_nn_iris_classification.ipynb) |[py](Feedforward-NeuralNet/code/np_nn_iris_classification.py) |
-|FeedForward Neural Network |Irsis |Classification |tensorflow |[ipynb](Feedforward-NeuralNet/tf_nn_iris_classification.ipynb) |[py](Feedforward-NeuralNet/code/tf_nn_iris_classification.py) |
-|Recurrent Neural Network |Addition |Classification |numpy |[ipynb](Recurrent-NeuralNet/np_rnn_addition.ipynb) |[py](Recurrent-NeuralNet/code/np_rnn_addition.py) |
-|Recurrent Neural Network |Addition |Classification |tensorflow |[ipynb](Recurrent-NeuralNet/tf_rnn_addition.ipynb) |[py](Recurrent-NeuralNet/code/tf_rnn_addition.py) |
-|Recurrent Neural Network |Graycode |Classification |numpy |[ipynb](Recurrent-NeuralNet/np_rnn_graycode.ipynb) |[py](Recurrent-NeuralNet/code/np_rnn_graycode.py) |
-|Recurrent Neural Network |Graycode |Classification |tensorflow |[ipynb](Recurrent-NeuralNet/tf_rnn_graycode.ipynb) |[py](Recurrent-NeuralNet/code/tf_rnn_graycode.py) |
-|Recurrent Neural Network |Climate(CO2) |Time-series |tensorflow |[ipynb](Recurrent-NeuralNet/tf_lstm_climate_timeseries.ipynb) |[py](Recurrent-NeuralNet/code/tf_lstm_climate_timeseries.py) |
-|Convolutional Neural Network |MNIST |Classification |tensorflow |[ipynb](Convolutional-NeuralNet/tf_cnn_mnist_classification.ipynb) |[py](Convolutional-NeuralNet/code/tf_cnn_mnist_classification.py) |
-|Hopfield Network |Dummy Data |Reconstruction |numpy |[ipynb](Hopfield-Network/np_hnn_reconstruction.ipynb) |[py](Hopfield-Network/code/np_hnn_reconstruction.py) |
-|Restricted Boltzmann Machine |MNIST |Reconstruction |numpy |[ipynb](Restricted-Boltzmann-Machine/np_rbm_mnist_reconstruction.ipynb) |[py](Restricted-Boltzmann-Machine/code/np_rbm_mnist_reconstruction.py) |
-|Restricted Boltzmann Machine |MNIST |Reconstruction |tensorflow |[ipynb](Restricted-Boltzmann-Machine/tf_rbm_mnist_reconstruction.ipynb) |[py](Restricted-Boltzmann-Machine/code/tf_rbm_mnist_reconstruction.py) |
-|Denoising AutoEncoder |MNIST |Reconstruction |tensorflow |[ipynb](Denoising-Autoencoder/tf_dae_mnist_reconstruction.ipynb) |[py](Denoising-Autoencoder/code/tf_dae_mnist_reconstruction.py) |
-|Deconvolutional AutoEncoder |MNIST |Reconstruction |tensorflow |[ipynb](Deconvolutional-Autoencoder/tf_dcae_mnist_reconstruction.ipynb) |[py](Deconvolutional-Autoencoder/tf_dcae_mnist_reconstruction.ipynb) |
+
+* FeedForward Neural Network
+    * Classification `Iris dataset`
+        * numpy - [code](Feedforward-NeuralNet/code/np_nn_iris_classification.py), [notebook](Feedforward-NeuralNet/np_nn_iris_classification.ipynb)
+        * tensorflow - [code](Feedforward-NeuralNet/code/tf_nn_iris_classification.py), [notebook](Feedforward-NeuralNet/tf_nn_iris_classification.ipynb)
+
+* Recurrent Neural Network
+    * Addition `8-bit numbers`
+        * numpy - [code](Recurrent-NeuralNet/code/np_rnn_addition.py), [notebook](Recurrent-NeuralNet/np_rnn_addition.ipynb)
+        * tensorflow - [code](Recurrent-NeuralNet/code/tf_rnn_addition.py), [notebook](Recurrent-NeuralNet/tf_rnn_addition.ipynb)
+    * Time-series `CO2(ppm) mauna loa, 1965-1980`
+        * tensorflow - [code](Recurrent-NeuralNet/code/tf_lstm_climate_timeseries.py), [notebook](Recurrent-NeuralNet/tf_lstm_climate_timeseries.ipynb)
+
+* Convolutional Neural Network
+    * Classification `MNIST`
+        * tensorflow - [code](Convolutional-NeuralNet/code/tf_cnn_mnist_classification.py), [notebook](Convolutional-NeuralNet/tf_cnn_mnist_classification.ipyn)
+
+* Hopfield Network
+    * Data Reconstruction
+        * numpy - [code](Hopfield-Network/code/np_hnn_reconstruction.py), [notebook](Hopfield-Network/np_hnn_reconstruction.ipynb)
+
+* Restricted Boltzmann Machine
+    * Image Reconstruction `MNIST`
+        * numpy - [code](Restricted-Boltzmann-Machine/code/np_rbm_mnist_reconstruction.py), [notebook](Restricted-Boltzmann-Machine/np_rbm_mnist_reconstruction.ipynb)
+        * tensorflow - [code](Restricted-Boltzmann-Machine/code/tf_rbm_mnist_reconstruction.py), [notebook](Restricted-Boltzmann-Machine/tf_rbm_mnist_reconstruction.ipynb)
+
+* Denoising Neural AutoEncoder
+    * Image Denoising `MNIST`
+        * tensorflow - [code](Denoising-Autoencoder/code/tf_dae_mnist_reconstruction.py), [notebook](Denoising-Autoencoder/tf_dae_mnist_reconstruction.ipynb)
+
+* Deconvolutional Neural AutoEncoder
+    * Image Reconstruction `MNIST`
+        * tensorflow - [code](Deconvolutional-Autoencoder/code/tf_dcae_mnist_reconstruction.py), [notebook](Deconvolutional-Autoencoder/tf_dcae_mnist_reconstruction.ipynb)
