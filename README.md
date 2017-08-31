@@ -38,7 +38,6 @@ The programs depends upon following dependencies:
 
 * Restricted Boltzmann Machine
     * Image Reconstruction `MNIST`
-        * numpy - [code](Restricted-Boltzmann-Machine/code/np_rbm_mnist_reconstruction.py), [notebook](Restricted-Boltzmann-Machine/np_rbm_mnist_reconstruction.ipynb)
         * tensorflow - [code](Restricted-Boltzmann-Machine/code/tf_rbm_mnist_reconstruction.py), [notebook](Restricted-Boltzmann-Machine/tf_rbm_mnist_reconstruction.ipynb)
 
 * Denoising Neural AutoEncoder
