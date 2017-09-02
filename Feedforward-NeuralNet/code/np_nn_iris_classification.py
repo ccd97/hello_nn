@@ -85,22 +85,14 @@ activation_f = {
     'identity': lambda x: x,
     'sigmoid': lambda x: 1.0 / (1.0 + np.exp(-x)),
     'tanh': lambda x: np.tanh(x),
-    'arctan': lambda x: np.arctan(x),
     'relu': lambda x: x * (x > 0),
-    'softplus': lambda x: np.log(1 + np.exp(x)),
-    'sinusoid': lambda x: np.sin(x),
-    'gaussian': lambda x: np.exp(-x * x)
 }
 
 activation_f_prime = {
     'identity': lambda x: 1,
     'sigmoid': lambda x: x * (1.0 - x),
     'tanh': lambda x: 1 - x**2,
-    'arctan': lambda x: 1.0 / (1.0 + np.tan(x)**2),
     'relu': lambda x: 1.0 * (x > 0),
-    'softplus': lambda x: 1.0 - np.exp(-x),
-    'sinusoid': lambda x: np.cos(np.arcsin(x)),
-    'gaussian': lambda x: -2 * x * np.sqrt(-np.log(x))
 }
 
 # Activation Function Parameters
@@ -159,7 +151,7 @@ T = labels_train
 
 # Epoch-training
 for epoch in range(n_epoch):
-    err = []
+    tr_err = []
 
     for i in range(X.shape[0]):
         loss, grad_V, grad_W = train(X[i], T[i], V, W)
@@ -168,10 +160,21 @@ for epoch in range(n_epoch):
         V -= learning_rate * grad_V + momentum * grad_V
         W -= learning_rate * grad_W + momentum * grad_W
 
-        err.append(loss)
+        tr_err.append(loss)
 
     if epoch % 10 == 0:
-        print("Epoch: %d, Loss: %.8f" % (epoch, sum(err) / len(err)))
+        val_err = []
+
+        # use test set as validiation set
+        for i in range(features_test.shape[0]):
+            loss, _, _ = train(features_test[i], labels_test[i], V, W)
+            val_err.append(loss)
+
+        train_error = sum(tr_err) / len(tr_err)
+        valid_error = sum(val_err) / len(val_err)
+
+        print("Epoch:", epoch, " Train-error:", train_error,
+              " Validation-error:", valid_error)
 
 # Test Neural Network
 

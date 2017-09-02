@@ -76,7 +76,9 @@ n_input_layers = len(features_test[0])
 n_hidden_layers_1 = 5
 n_output_layers = len(tmp_list)
 
-learning_rate = 0.1
+learning_rate = 0.01
+momentum = 0.9
+
 n_epochs = 100
 
 # input/output placeholders
@@ -100,36 +102,50 @@ layer_op = {
 }
 
 # Model
-h_l1 = tf.add(tf.matmul(X, layer_1['weights']), layer_1['biases'])
-l1 = tf.nn.sigmoid(h_l1)
+h_l1 = tf.nn.xw_plus_b(X, layer_1['weights'], layer_1['biases'])
+l1 = tf.nn.tanh(h_l1)
 
-h_l2 = tf.add(tf.matmul(l1, layer_op['weights']), layer_op['biases'])
+h_l2 = tf.nn.xw_plus_b(l1, layer_op['weights'], layer_op['biases'])
 op = tf.nn.sigmoid(h_l2)
 
 # Error and Optimizer
 
 # mean-squared error
-err = tf.reduce_mean(0.5 * tf.square(op - Y))
+err = tf.losses.mean_squared_error(predictions=op, labels=Y)
 
-# adam-optimizer
-optimizer = tf.train.AdamOptimizer(learning_rate).minimize(err)
+# gradient-descent-with-momentum-optimizer
+optimizer = tf.train.MomentumOptimizer(learning_rate, momentum).minimize(err)
 
 # Start Session
 with tf.Session() as sess:
+
     tf.global_variables_initializer().run()
 
     print("*********** Train ***********")
 
     # Epoch training
     for epoch in range(n_epochs):
-        _, error = sess.run(
-            [optimizer, err], feed_dict={X: features_train, Y: labels_train})
+
+        tr_err = []
+
+        for i in range(len(features_train)):
+            _, error = sess.run([optimizer, err], feed_dict={
+                    X: features_train[i].reshape(1, -1),
+                    Y: labels_train[i]
+                })
+            tr_err.append(error)
 
         if epoch % 10 == 0:
-            print("Epoch:", epoch, " Error:", error)
+            # use test set for validation
+            val_err = err.eval({X: features_test, Y: labels_test})
+            train_err = sum(tr_err) / len(tr_err)
+            print("Epoch:", epoch, " Train-error:", train_err,
+                  " Validation-error:", val_err)
 
     print("*********** Test ***********")
 
     correct = tf.equal(tf.argmax(op, 1), tf.argmax(Y, 1))
     accuracy = tf.reduce_mean(tf.cast(correct, 'float'))
-    print('Accuracy:', accuracy.eval({X: features_test, Y: labels_test}) * 100)
+    test_error = err.eval({X: features_test, Y: labels_test})
+    test_accuracy = accuracy.eval({X: features_test, Y: labels_test}) * 100
+    print('Test-error:', test_error, 'Accuracy:', test_accuracy)
