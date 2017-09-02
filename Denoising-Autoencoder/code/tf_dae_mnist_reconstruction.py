@@ -43,17 +43,18 @@ def add_noise(data, mean=0, stddev=0.2):
 
 # load the mmist dataset from tensorflow.examples
 mnist = input_data.read_data_sets("MNIST_data/", one_hot=True)
-features_train, features_test = mnist.train.images, mnist.test.images
+features_train, features_test, features_valid = \
+    mnist.train.images, mnist.test.images, mnist.validation.images
 
 #  Neural Network Model
 # 2 Encoder layers + 2 Decoder layers (all dense neural layers)
 
 # Hyper-parameters
 n_input_layer = features_train.shape[1]
-n_enc_hidden_1 = 392
-n_enc_hidden_2 = 196
-n_dec_hidden_1 = 196
-n_dec_hidden_2 = 392
+n_enc_hidden_1 = 400
+n_enc_hidden_2 = 100  # 7.84 times compression
+n_dec_hidden_1 = 100
+n_dec_hidden_2 = 400
 n_output_layer = features_train.shape[1]
 
 learning_rate = 0.001
@@ -104,12 +105,12 @@ enc_1 = tf.nn.sigmoid(h_enc_1)
 
 h_enc_2 = tf.add(
     tf.matmul(enc_1, enc_layer_2['weights']), enc_layer_2['biases'])
-enc_2 = tf.nn.sigmoid(h_enc_2)
+enc_2 = tf.nn.tanh(h_enc_2)
 
 # Decoder
 h_dec_1 = tf.add(
     tf.matmul(enc_2, dec_layer_1['weights']), dec_layer_1['biases'])
-dec_1 = tf.nn.sigmoid(h_dec_1)
+dec_1 = tf.nn.tanh(h_dec_1)
 
 h_dec_2 = tf.add(
     tf.matmul(dec_1, dec_layer_2['weights']), dec_layer_2['biases'])
@@ -118,7 +119,7 @@ dec_2 = tf.nn.sigmoid(h_dec_2)
 # Error and Optimizer
 
 # mean-squared error
-cost = tf.reduce_mean(0.5 * tf.square(dec_2 - Y))
+cost = tf.losses.mean_squared_error(labels=Y, predictions=dec_2)
 
 # adam-optimizer
 optimizer = tf.train.AdamOptimizer(learning_rate).minimize(cost)
@@ -137,32 +138,37 @@ with tf.Session() as sess:
 
     # Epoch-training
     for epoch in range(n_epoch):
-        err = []
+        tr_err = []
 
         # Batch training
         for b_idx in range(n_batch):
             noisy_data = add_noise(batched_data[b_idx])
-            e, _ = sess.run(
-                [cost, optimizer],
-                feed_dict={X: batched_data[b_idx],
-                           Y: noisy_data})
+            e, _ = sess.run([cost, optimizer], feed_dict={
+                        X: noisy_data,
+                        Y: batched_data[b_idx]
+            })
 
-            err.append(e)
+            tr_err.append(e)
 
-        print("Epoch: %d, Error: %.8f" % (epoch, sum(err) / len(err)))
+        noisy_vaild_data = add_noise(features_valid)
+        val_err = cost.eval({X: noisy_vaild_data, Y: features_valid})
+
+        train_err = sum(tr_err) / len(tr_err)
+        print("Epoch:", epoch, " Train-error:", train_err,
+              " Validation-error:", val_err)
 
     print("\n*********** Test ***********")
 
     # Test the model on test data and try to reconstruct it
-    original_imgs = features_test[:test_disp]
-    noisy_imgs = add_noise(original_imgs)
-    reconstructed_imgs, err = sess.run(
-        [dec_2, cost], feed_dict={X: noisy_imgs,
-                                  Y: original_imgs})
+    noisy_test = add_noise(features_test)
+    reconstructed_imgs, err = sess.run([dec_2, cost], feed_dict={
+                                X: noisy_test,
+                                Y: features_test
+    })
     disp_imgs = []
-    for i in range(len(original_imgs)):
-        disp_imgs.append(original_imgs[i])
-        disp_imgs.append(noisy_imgs[i])
+    for i in range(test_disp):
+        disp_imgs.append(features_test[i])
+        disp_imgs.append(noisy_test[i])
         disp_imgs.append(reconstructed_imgs[i])
 
     # Plot original, noisy and reconstructed images
