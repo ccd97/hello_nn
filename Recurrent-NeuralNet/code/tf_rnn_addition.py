@@ -6,8 +6,8 @@ import tensorflow as tf
 # Pre-process data
 
 # seed random number generators
-np.random.seed(1)
-tf.set_random_seed(1)
+rng = np.random.default_rng(seed=42)
+tf.random.set_seed(42)
 
 total_test_cases = 1000
 train_test_ratio = 0.8
@@ -29,8 +29,8 @@ def reverse_bits(n, n_bits):
 
 # generate data (addition)
 for i in range(total_test_cases):
-    a = np.random.randint(0, 128)
-    b = np.random.randint(0, 128)
+    a = rng.integers(0, 128)
+    b = rng.integers(0, 128)
     c = a + b
 
     a = reverse_bits(a, 8)
@@ -54,14 +54,14 @@ features = np.array(tmp_list)
 
 # split into train-test set and transpose the array
 features_train = np.transpose(features[:int(train_test_ratio * len(features))],
-                              [2, 0, 1])
+                              [2, 0, 1]).astype(np.float32)
 features_test = np.transpose(features[int(train_test_ratio * len(features)):],
-                             [2, 0, 1])
+                             [2, 0, 1]).astype(np.float32)
 
 labels_train = np.transpose(labels[:int(train_test_ratio * len(labels))],
-                            [1, 0, 2])
+                            [1, 0, 2]).astype(np.float32)
 labels_test = np.transpose(labels[int(train_test_ratio * len(labels)):],
-                           [1, 0, 2])
+                           [1, 0, 2]).astype(np.float32)
 
 # Neural Network
 
@@ -75,84 +75,90 @@ learning_rate = 0.01
 
 n_epochs = 100
 
-# input/output placeholders
-X = tf.placeholder(tf.float32, [sequence_len, None, n_input_neurons])
-Y = tf.placeholder(tf.float32, [sequence_len, None, n_output_neurons])
-
 # weights and biases
 layer_op = {
     'weight':
     tf.Variable(
-        tf.random_normal([n_rnn_neurons, n_output_neurons], stddev=0.1)),
+        tf.random.normal([n_rnn_neurons, n_output_neurons], stddev=0.1)),
     'bias':
-    tf.Variable(tf.random_normal([n_output_neurons], stddev=0.1))
+    tf.Variable(tf.random.normal([n_output_neurons], stddev=0.1))
 }
 
 # Model
+rnn = tf.keras.layers.SimpleRNN(n_rnn_neurons, return_sequences=True)
 
-rnn_cell = tf.contrib.rnn.BasicRNNCell(n_rnn_neurons)
-rnn_ops, rnn_states = tf.nn.dynamic_rnn(
-    rnn_cell, X, time_major=True, dtype=tf.float32)
 
-pred_op = tf.map_fn(
-    lambda x:
-        tf.nn.sigmoid(tf.matmul(x, layer_op['weight']) + layer_op['bias']),
+def model(X):
+    # [sequence_len, batch_size, n_input_neurons] -> [batch_size, sequence_len, n_input_neurons]
+    x_batch = tf.transpose(X, [1, 0, 2])
+    rnn_ops = tf.transpose(rnn(x_batch), [1, 0, 2])
+
+    pred_op = tf.map_fn(
+        lambda x:
+            tf.nn.sigmoid(tf.matmul(x, layer_op['weight']) + layer_op['bias']),
         rnn_ops)
+    return pred_op
+
 
 # Error and Optimizer
 
-# mean-squared error
-error = tf.reduce_mean(0.5 * tf.square(pred_op - Y))
-
 # adam-optimizer
-optimizer = tf.train.AdamOptimizer(learning_rate).minimize(error)
+optimizer = tf.optimizers.Adam(learning_rate)
 
-# Start Session
-with tf.Session() as sess:
-    tf.global_variables_initializer().run()
 
-    print("########## TRAIN ##########")
+@tf.function
+def train_step(x, y):
+    with tf.GradientTape() as tape:
+        pred_op = model(x)
+        # mean-squared error
+        error = tf.reduce_mean(0.5 * tf.square(pred_op - y))
+    trainable_variables = rnn.trainable_variables + [
+        layer_op['weight'], layer_op['bias']
+    ]
+    grads = tape.gradient(error, trainable_variables)
+    optimizer.apply_gradients(zip(grads, trainable_variables))
+    return error
 
-    # Epoch training
-    for epoch in range(n_epochs):
-        _, err = sess.run(
-            [optimizer, error], feed_dict={X: features_train,
-                                           Y: labels_train})
 
-        if epoch % 10 == 0:
-            print("Epoch:", epoch, " Error:", err)
+# Training
+print("########## TRAIN ##########")
 
-    print("\n########## TEST ##########")
+# Epoch training
+for epoch in range(n_epochs):
+    err = train_step(features_train, labels_train)
 
-    op = pred_op.eval({X: features_test})
-    op = np.transpose((op > 0.5).astype(int), [1, 0, 2])
-    op = np.packbits(op)
-    op = [reverse_bits(x, 8) for x in op]
+    if epoch % 10 == 0:
+        print(f"Epoch: {epoch} Error: {float(err):f}")
 
-    c = np.transpose(labels_test, [1, 0, 2])
-    c = np.packbits(c)
-    c = [reverse_bits(x, 8) for x in c]
+print("\n########## TEST ##########")
 
-    a = features_test[:, :, 0]
-    a = np.transpose(a, [1, 0])
-    a = np.packbits(a)
-    a = [reverse_bits(x, 8) for x in a]
+pred_op = model(features_test).numpy()
+op = np.transpose((pred_op > 0.5).astype(np.uint8), [1, 0, 2])
+op = np.packbits(op)
+op = [reverse_bits(x, 8) for x in op]
 
-    b = features_test[:, :, 1]
-    b = np.transpose(b, [1, 0])
-    b = np.packbits(b)
-    b = [reverse_bits(x, 8) for x in b]
+c = np.transpose(labels_test.astype(np.uint8), [1, 0, 2])
+c = np.packbits(c)
+c = [reverse_bits(x, 8) for x in c]
 
-    success = 0
+a = features_test[:, :, 0]
+a = np.transpose(a.astype(np.uint8), [1, 0])
+a = np.packbits(a)
+a = [reverse_bits(x, 8) for x in a]
 
-    for i in range(len(op)):
+b = features_test[:, :, 1]
+b = np.transpose(b.astype(np.uint8), [1, 0])
+b = np.packbits(b)
+b = [reverse_bits(x, 8) for x in b]
 
-        if c == op:
-            success += 1
+success = 0
 
-        if i < disp_test:
-            print("%d + %d = %d \t --> %5s " % (a[i], b[i], c[i],
-                                                c[i] == op[i]))
+for i in range(len(op)):
 
-    print("\nSuccess: %d/%d, Accuracy = %f" % (success, len(op),
-                                               success / len(op) * 100))
+    if c[i] == op[i]:
+        success += 1
+
+    if i < disp_test:
+        print(f"{a[i]} + {b[i]} = {c[i]} \t --> {str(c[i] == op[i]):>5} ")
+
+print(f"\nSuccess: {success}/{len(op)}, Accuracy = {success / len(op) * 100:f}")

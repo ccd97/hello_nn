@@ -1,20 +1,19 @@
 # Import dependencies
 
 import numpy as np
-import random
 import urllib.request
 
 # Download iris dataset
 
-urllib.request.urlretrieve(
-    "https://archive.ics.uci.edu/ml/machine-learning-databases/iris/iris.data",
-    "iris-data.txt")
+dataset_url = "https://archive.ics.uci.edu/ml/machine-learning-databases/iris/iris.data"
+with urllib.request.urlopen(dataset_url) as response:
+    with open("iris-data.txt", "wb") as out_file:
+        out_file.write(response.read())
 
 # Pre-process data
 
 # seed random-generators
-random.seed(0)
-np.random.seed(0)
+rng = np.random.default_rng(seed=42)
 
 train_test_ratio = 0.8
 
@@ -29,7 +28,7 @@ with open("iris-data.txt") as f:
         if not line.isspace():
             tmp_list.append(line)
 
-    random.shuffle(tmp_list)
+    rng.shuffle(tmp_list)
 
 for line in tmp_list:
     split_line = line.strip().split(',')
@@ -111,18 +110,18 @@ def train(input_features, output_label, i_h_weights, h_o_weights):
     input_features = input_features.reshape(1, -1)
 
     # forward prop
-    h_inter = np.dot(input_features, i_h_weights)
+    h_inter = input_features @ i_h_weights
     h_result = act_f1(h_inter)
-    o_inter = np.dot(h_result, h_o_weights)
+    o_inter = h_result @ h_o_weights
     o_result = act_f2(o_inter)
 
     error = np.mean(0.5 * np.square(o_result - output_label))
 
     # back prop
-    del_h_o = -np.multiply(output_label - o_result, act_f2_prime(o_result))
-    change_h_o = np.dot(h_result.T, del_h_o)
-    del_i_h = np.dot(del_h_o, h_o_weights.T) * act_f1_prime(h_result)
-    change_i_h = np.dot(input_features.T, del_i_h)
+    del_h_o = -(output_label - o_result) * act_f2_prime(o_result)
+    change_h_o = h_result.T @ del_h_o
+    del_i_h = del_h_o @ h_o_weights.T * act_f1_prime(h_result)
+    change_i_h = input_features.T @ del_i_h
 
     return error, change_i_h, change_h_o
 
@@ -130,9 +129,9 @@ def train(input_features, output_label, i_h_weights, h_o_weights):
 # Predict Function
 def predict(input_features, i_h_weights, h_o_weights):
     # uses just forward prop
-    h_inter = np.dot(input_features, i_h_weights)
+    h_inter = input_features @ i_h_weights
     h_result = act_f1(h_inter)
-    o_inter = np.dot(h_result, h_o_weights)
+    o_inter = h_result @ h_o_weights
     o_result = act_f2(o_inter)
     return (o_result >= max(o_result)).astype(int)
 
@@ -142,8 +141,8 @@ def predict(input_features, i_h_weights, h_o_weights):
 print("*********** Train ***********")
 
 # Initial Random Weights
-V = np.random.normal(scale=0.1, size=(n_input_layers, n_hidden_layers))
-W = np.random.normal(scale=0.1, size=(n_hidden_layers, n_output_layers))
+V = rng.normal(scale=0.1, size=(n_input_layers, n_hidden_layers))
+W = rng.normal(scale=0.1, size=(n_hidden_layers, n_output_layers))
 
 # Training-set
 X = features_train
@@ -187,5 +186,6 @@ for i in range(len(features_test)):
     if np.array_equal(a, b):
         success += 1
 
-print("Total = %d Success = %d Accuracy = %f" %
-      (len(features_test), success, success * 100 / len(features_test)))
+print(
+    f"Total = {len(features_test)} Success = {success} Accuracy = {success * 100 / len(features_test):f}"
+)

@@ -1,21 +1,20 @@
 # Import dependencies
 
-import numpy as np
-import random
-import tensorflow as tf
 import urllib.request
+import numpy as np
+import tensorflow as tf
 
 # Download iris dataset
 
-urllib.request.urlretrieve(
-    "https://archive.ics.uci.edu/ml/machine-learning-databases/iris/iris.data",
-    "iris-data.txt")
+dataset_url = "https://archive.ics.uci.edu/ml/machine-learning-databases/iris/iris.data"
+with urllib.request.urlopen(dataset_url) as response:
+    with open("iris-data.txt", "wb") as out_file:
+        out_file.write(response.read())
 
 # Pre-process data
 
 # seed random-generators
-random.seed(0)
-np.random.seed(0)
+rng = np.random.default_rng(seed=42)
 
 train_test_ratio = 0.8
 
@@ -30,7 +29,7 @@ with open("iris-data.txt") as f:
         if not line.isspace():
             tmp_list.append(line)
 
-    random.shuffle(tmp_list)
+    rng.shuffle(tmp_list)
 
 for line in tmp_list:
     split_line = line.strip().split(',')
@@ -59,12 +58,12 @@ for i in range(len(labels)):
     labels[i] = tmp_list.index(labels[i])
 
 label_idx = np.array(labels)
-labels = np.zeros((len(labels), len(tmp_list)))
-labels[np.arange(len(labels)), label_idx] = 1
+labels = np.zeros((len(labels), len(tmp_list)), dtype=np.float32)
+labels[np.arange(len(labels)), label_idx] = 1.0
 
 # split into train-test set
-features_train = np.array(features[:int(train_test_ratio * len(features))])
-features_test = np.array(features[int(train_test_ratio * len(features)):])
+features_train = np.array(features[:int(train_test_ratio * len(features))], dtype=np.float32)
+features_test = np.array(features[int(train_test_ratio * len(features)):], dtype=np.float32)
 
 labels_train = labels[:int(train_test_ratio * len(labels))]
 labels_test = labels[int(train_test_ratio * len(labels)):]
@@ -81,71 +80,85 @@ momentum = 0.9
 
 n_epochs = 100
 
-# input/output placeholders
-X = tf.placeholder(tf.float32, [None, n_input_layers])
-Y = tf.placeholder(tf.float32)
-
 # Weights and biases
 layer_1 = {
     'weights':
     tf.Variable(
-        tf.random_normal([n_input_layers, n_hidden_layers_1], stddev=0.1)),
+        tf.random.normal([n_input_layers, n_hidden_layers_1], stddev=0.1)),
     'biases':
-        tf.Variable(tf.random_normal([n_hidden_layers_1], stddev=0.1))
+    tf.Variable(tf.random.normal([n_hidden_layers_1], stddev=0.1))
 }
 layer_op = {
     'weights':
     tf.Variable(
-        tf.random_normal([n_hidden_layers_1, n_output_layers], stddev=0.1)),
+        tf.random.normal([n_hidden_layers_1, n_output_layers], stddev=0.1)),
     'biases':
-        tf.Variable(tf.random_normal([n_output_layers], stddev=0.1))
+    tf.Variable(tf.random.normal([n_output_layers], stddev=0.1))
 }
 
-# Model
-h_l1 = tf.nn.xw_plus_b(X, layer_1['weights'], layer_1['biases'])
-l1 = tf.nn.tanh(h_l1)
+trainable_variables = [
+    layer_1['weights'], layer_1['biases'],
+    layer_op['weights'], layer_op['biases']
+]
 
-h_l2 = tf.nn.xw_plus_b(l1, layer_op['weights'], layer_op['biases'])
-op = tf.nn.sigmoid(h_l2)
+
+# Model
+def model(X):
+    h_l1 = tf.matmul(X, layer_1['weights']) + layer_1['biases']
+    l1 = tf.nn.tanh(h_l1)
+
+    h_l2 = tf.matmul(l1, layer_op['weights']) + layer_op['biases']
+    op = tf.nn.sigmoid(h_l2)
+    return op
+
 
 # Error and Optimizer
 
 # mean-squared error
-err = tf.losses.mean_squared_error(predictions=op, labels=Y)
+def compute_error(predictions, labels_batch):
+    return tf.reduce_mean(tf.square(predictions - labels_batch))
+
 
 # gradient-descent-with-momentum-optimizer
-optimizer = tf.train.MomentumOptimizer(learning_rate, momentum).minimize(err)
+optimizer = tf.optimizers.SGD(learning_rate, momentum=momentum)
 
-# Start Session
-with tf.Session() as sess:
 
-    tf.global_variables_initializer().run()
+@tf.function
+def train_step(x_sample, y_sample):
+    with tf.GradientTape() as tape:
+        predictions = model(x_sample)
+        loss = compute_error(predictions, y_sample)
+    grads = tape.gradient(loss, trainable_variables)
+    optimizer.apply_gradients(zip(grads, trainable_variables))
+    return loss
 
-    print("*********** Train ***********")
 
-    # Epoch training
-    for epoch in range(n_epochs):
+# Training
+print("*********** Train ***********")
 
-        tr_err = []
+# Epoch training
+for epoch in range(n_epochs):
+    tr_err = []
 
-        for i in range(len(features_train)):
-            _, error = sess.run([optimizer, err], feed_dict={
-                    X: features_train[i].reshape(1, -1),
-                    Y: labels_train[i]
-                })
-            tr_err.append(error)
+    for i in range(len(features_train)):
+        x_sample = features_train[i:i + 1]
+        y_sample = labels_train[i:i + 1]
+        error = train_step(x_sample, y_sample)
+        tr_err.append(error)
 
-        if epoch % 10 == 0:
-            # use test set for validation
-            val_err = err.eval({X: features_test, Y: labels_test})
-            train_err = sum(tr_err) / len(tr_err)
-            print("Epoch:", epoch, " Train-error:", train_err,
-                  " Validation-error:", val_err)
+    if epoch % 10 == 0:
+        # use test set for validation
+        val_preds = model(features_test)
+        val_err = compute_error(val_preds, labels_test)
+        train_err = sum(tr_err) / len(tr_err)
+        print("Epoch:", epoch, " Train-error:", float(train_err),
+              " Validation-error:", float(val_err))
 
-    print("*********** Test ***********")
+print("*********** Test ***********")
 
-    correct = tf.equal(tf.argmax(op, 1), tf.argmax(Y, 1))
-    accuracy = tf.reduce_mean(tf.cast(correct, 'float'))
-    test_error = err.eval({X: features_test, Y: labels_test})
-    test_accuracy = accuracy.eval({X: features_test, Y: labels_test}) * 100
-    print('Test-error:', test_error, 'Accuracy:', test_accuracy)
+test_preds = model(features_test)
+test_error = compute_error(test_preds, labels_test)
+correct = tf.equal(tf.argmax(test_preds, 1), tf.argmax(labels_test, 1))
+accuracy = tf.reduce_mean(tf.cast(correct, tf.float32))
+test_accuracy = accuracy * 100
+print('Test-error:', float(test_error), 'Accuracy:', float(test_accuracy))

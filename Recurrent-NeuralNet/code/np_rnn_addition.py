@@ -5,7 +5,7 @@ import numpy as np
 # Pre-process data
 
 # seed random number generator
-np.random.seed(1)
+rng = np.random.default_rng(seed=42)
 
 total_test_cases = 100
 train_test_ratio = 0.80
@@ -16,8 +16,8 @@ labels = []
 
 # generate data (addition)
 for _ in range(total_test_cases):
-    a = np.random.randint(0, 128)
-    b = np.random.randint(0, 128)
+    a = rng.integers(0, 128)
+    b = rng.integers(0, 128)
     c = a + b
 
     features.append([a, b])
@@ -85,9 +85,9 @@ act_f1_prime = activation_f_prime[f1]
 act_f2_prime = activation_f_prime[f2]
 
 # Initialize random weights
-V = np.random.normal(scale=0.1, size=(n_input_layers, n_hidden_layers))
-W = np.random.normal(scale=0.1, size=(n_hidden_layers, n_output_layers))
-R = np.random.normal(scale=0.1, size=(n_hidden_layers, n_hidden_layers))
+V = rng.normal(scale=0.1, size=(n_input_layers, n_hidden_layers))
+W = rng.normal(scale=0.1, size=(n_hidden_layers, n_output_layers))
+R = rng.normal(scale=0.1, size=(n_hidden_layers, n_hidden_layers))
 
 # Train
 
@@ -121,9 +121,9 @@ for e in range(n_epochs):
             x = np.array([X[i][0][-j - 1], X[i][1][-j - 1]]).reshape(1, -1)
             y = np.array(Y[i][-j - 1])
 
-            h_inter = np.dot(x, V) + np.dot(h_layers[-1], R)
+            h_inter = x @ V + h_layers[-1] @ R
             h_final = act_f1(h_inter)
-            o_inter = np.dot(h_final, W)
+            o_inter = h_final @ W
             o_final = act_f2(o_inter)
 
             # Store hidden layer
@@ -132,12 +132,12 @@ for e in range(n_epochs):
             err += (0.5 * np.square(y - o_final))[0][0]
 
             # Backward Prop
-            del_h_o = -np.multiply(y - o_final, act_f2_prime(o_final))
+            del_h_o = -(y - o_final) * act_f2_prime(o_final)
 
             # Store delta
             dels.append(del_h_o)
 
-            change_h_o = np.dot(h_final.T, del_h_o)
+            change_h_o = h_final.T @ del_h_o
             W_update += change_h_o
 
         next_del = np.zeros(n_hidden_layers)
@@ -146,11 +146,11 @@ for e in range(n_epochs):
         for j in range(n_sequence):
             x = np.array([X[i][0][j], X[i][1][j]]).reshape(1, -1)
 
-            del_h = (np.dot(next_del, R.T) + np.dot(dels[-j - 1], W.T)
+            del_h = (next_del @ R.T + dels[-j - 1] @ W.T
                      ) * act_f1_prime(h_layers[-j - 1])
 
-            change_h_h = np.dot(h_layers[-j - 2].T, del_h)
-            change_i_h = np.dot(x.T, del_h)
+            change_h_h = h_layers[-j - 2].T @ del_h
+            change_i_h = x.T @ del_h
 
             R_update += change_h_h
             V_update += change_i_h
@@ -165,7 +165,7 @@ for e in range(n_epochs):
         R -= R_update * learning_rate
 
     if e % 10 == 0:
-        print("Epoch: %d Error: %f" % (e, E / X.shape[0]))
+        print(f"Epoch: {e} Error: {E / X.shape[0]:f}")
 
 # ### Test
 
@@ -194,9 +194,9 @@ for i in range(X.shape[0]):
         y = np.array(Y[i][-j - 1])
 
         # Forward prop
-        h_inter = np.dot(x, V) + np.dot(h_layer, R)
+        h_inter = x @ V + h_layer @ R
         h_final = act_f1(h_inter)
-        o_inter = np.dot(h_final, W)
+        o_inter = h_final @ W
         o_final = act_f2(o_inter)
 
         h_layer = h_final
@@ -208,7 +208,6 @@ for i in range(X.shape[0]):
     if c == d:
         success += 1
 
-    print("%d + %d = %d \t --> %5s " % (a, b, c, c == d))
+    print(f"{a} + {b} = {c} \t --> {str(c == d):>5} ")
 
-print("\nSuccess: %d/%d, Accuracy = %f" % (success, X.shape[0],
-                                           success / X.shape[0] * 100))
+print(f"\nSuccess: {success}/{X.shape[0]}, Accuracy = {success / X.shape[0] * 100:f}")

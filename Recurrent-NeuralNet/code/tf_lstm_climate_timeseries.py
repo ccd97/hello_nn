@@ -1,14 +1,15 @@
 # Import dependencies
 
+import os
+import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
-import matplotlib.pyplot as plt
 
 # Pre-process data
 
 # seed random number generators
-np.random.seed(1)
-tf.set_random_seed(1)
+rng = np.random.default_rng(seed=42)
+tf.random.set_seed(42)
 
 # Paramaters
 seq_len = 50  # Sequence Length
@@ -18,19 +19,21 @@ time_series = []  # float values in ppm
 time_stamps = []  # string corresponding to year-month
 
 # read from data from csv file
-with open('datasets/co2-ppm-mauna-loa-19651980.csv') as f:
-    skipped_line = False
-    for line in f.readlines():
-        if not skipped_line:
-            skipped_line = True
-            continue
-        else:
-            try:
-                line = line.strip().split(',')
-                time_series.append([float(line[1])])
-                time_stamps.append(line[0].strip('"'))
-            except Exception as e:
-                break
+csv_path = 'datasets/co2-ppm-mauna-loa-19651980.csv'
+if not os.path.exists(csv_path):
+    csv_path = os.path.join(os.path.dirname(__file__), '..', csv_path)
+
+with open(csv_path) as f:
+    next(f)  # skip header
+    for line in f:
+        try:
+            line_parts = line.strip().split(',')
+            time_series.append([float(line_parts[1])])
+            time_stamps.append(line_parts[0].strip('"'))
+        except Exception:
+            break
+
+time_series = np.array(time_series, dtype=np.float32)
 
 # Scale data
 ts_min = np.min(time_series)
@@ -50,7 +53,7 @@ def create_dataset(data, len_seq):
     for i in range(len(data) - len_seq):
         features.append(data[i:i + len_seq])
         labels.append(data[i + len_seq])
-    return features, labels
+    return np.array(features, dtype=np.float32), np.array(labels, dtype=np.float32)
 
 
 trainX, trainY = create_dataset(train_time_series, seq_len)
@@ -68,64 +71,77 @@ learn_rate = 0.006
 
 n_epoch = 1000
 
-# input/output placeholders
-X = tf.placeholder(tf.float32, [None, seq_len, n_input_neurons])
-Y = tf.placeholder(tf.float32, [None, n_output_neurons])
-
 # Weights and biases for final fully connected layer
 layer_op = {
     'weight':
-    tf.Variable(tf.random_normal([n_rnn_neurons, n_output_neurons], stddev=1)),
+    tf.Variable(
+        tf.random.normal([n_rnn_neurons, n_output_neurons], stddev=1.0)),
     'bias':
-    tf.Variable(tf.random_normal([n_output_neurons], stddev=1))
+    tf.Variable(tf.random.normal([n_output_neurons], stddev=1.0))
 }
 
 # Model
 
-# lstm + droput layer
-cell = tf.contrib.rnn.BasicLSTMCell(n_rnn_neurons)
-cell = tf.contrib.rnn.DropoutWrapper(cell, output_keep_prob=0.75)
-lstm_op, _ = tf.nn.dynamic_rnn(cell, X, dtype=tf.float32)
+# lstm + dropout layer
+lstm = tf.keras.layers.LSTM(n_rnn_neurons)
+dropout = tf.keras.layers.Dropout(0.25)
 
-# Just connect last output of hidden layer to fully connected layer
-lstm_op = tf.squeeze(lstm_op[:, -1:], axis=1)
-final_op = tf.nn.sigmoid(
-    tf.matmul(lstm_op, layer_op['weight']) + layer_op['bias'])
+
+def model(X, training=False):
+    lstm_op = lstm(X)
+    if training:
+        lstm_op = dropout(lstm_op, training=True)
+    final_op = tf.nn.sigmoid(
+        tf.matmul(lstm_op, layer_op['weight']) + layer_op['bias'])
+    return final_op
+
 
 # Error and Optimizer
 
-# mean-squared error
-error = tf.reduce_mean(0.5 * tf.square(final_op - Y))
-
 # adam-optimizer
-optimizer = tf.train.AdamOptimizer(learn_rate).minimize(error)
+optimizer = tf.optimizers.Adam(learn_rate)
 
-# Start Session
-with tf.Session() as sess:
-    tf.global_variables_initializer().run()
 
-    print("*********** Train ***********")
+@tf.function
+def train_step(x, y):
+    with tf.GradientTape() as tape:
+        final_op = model(x, training=True)
+        # mean-squared error
+        error = tf.reduce_mean(0.5 * tf.square(final_op - y))
+    trainable_variables = lstm.trainable_variables + [
+        layer_op['weight'], layer_op['bias']
+    ]
+    grads = tape.gradient(error, trainable_variables)
+    optimizer.apply_gradients(zip(grads, trainable_variables))
+    return error
 
-    for epoch in range(n_epoch):
-        _, err = sess.run([optimizer, error], feed_dict={X: trainX, Y: trainY})
 
-        if epoch % 100 == 0:
-            print("Epoch : %d Error = %f" % (epoch, err))
+# Training
+print("*********** Train ***********")
 
-    print("\n*********** Test ***********")
+for epoch in range(n_epoch):
+    err = train_step(trainX, trainY)
 
-    err, resultt = sess.run([error, final_op], feed_dict={X: testX, Y: testY})
-    print("Testing Error : %f" % err)
+    if epoch % 100 == 0:
+        print(f"Epoch : {epoch} Error = {float(err):f}")
 
-    # Predict futur values with continuous data
-    inp = trainX[-1].flatten().tolist()
-    resultp = []
+print("\n*********** Test ***********")
 
-    for i in range(len(test_time_series)):
-        op = final_op.eval({X: np.reshape(inp, [1, -1, 1])})
-        inp.append(op[0][0])
-        resultp.append(op[0][0])
-        del inp[0]
+resultt = model(testX, training=False)
+err = tf.reduce_mean(0.5 * tf.square(resultt - testY))
+print(f"Testing Error : {float(err):f}")
+resultt = resultt.numpy()
+
+# Predict future values with continuous data
+inp = trainX[-1].flatten().tolist()
+resultp = []
+
+for i in range(len(test_time_series)):
+    x_in = np.reshape(inp, [1, -1, 1]).astype(np.float32)
+    op = model(x_in, training=False).numpy()
+    inp.append(op[0][0])
+    resultp.append(op[0][0])
+    del inp[0]
 
 # Plot test and prediction output
 

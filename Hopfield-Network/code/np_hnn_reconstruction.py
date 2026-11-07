@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 # function to plot the images after during testing phase
 def plot_images(images, title, no_i_x, no_i_y=3):
     fig = plt.figure(figsize=(10, 15))
-    fig.canvas.set_window_title(title)
+    fig.canvas.manager.set_window_title(title)
     images = np.array(images).reshape(-1, 5, 5)
     images = np.pad(
         images, ((0, 0), (1, 1), (1, 1)), 'constant', constant_values=-1)
@@ -31,28 +31,46 @@ def plot_images(images, title, no_i_x, no_i_y=3):
 #  Dummy Data
 perfect_data = {
     "P": [
-        1, 1, 1, 1, -1, 1, -1, -1, -1, 1, 1, 1, 1, 1, -1, 1, -1, -1, -1, -1, 1,
-        -1, -1, -1, -1
+         1,  1,  1,  1, -1,
+         1, -1, -1, -1,  1,
+         1,  1,  1,  1, -1,
+         1, -1, -1, -1, -1,
+         1, -1, -1, -1, -1
     ],
     "Y": [
-        1, -1, -1, -1, 1, -1, 1, -1, 1, -1, -1, -1, 1, -1, -1, -1, -1, 1, -1,
-        -1, -1, -1, 1, -1, -1
+         1, -1, -1, -1,  1,
+        -1,  1, -1,  1, -1,
+        -1, -1,  1, -1, -1,
+        -1, -1,  1, -1, -1,
+        -1, -1,  1, -1, -1
     ],
     "T": [
-        1, 1, 1, 1, 1, -1, -1, 1, -1, -1, -1, -1, 1, -1, -1, -1, -1, 1, -1, -1,
-        -1, -1, 1, -1, -1
+         1,  1,  1,  1,  1,
+        -1, -1,  1, -1, -1,
+        -1, -1,  1, -1, -1,
+        -1, -1,  1, -1, -1,
+        -1, -1,  1, -1, -1
     ],
     "H": [
-        1, -1, -1, -1, 1, 1, -1, -1, -1, 1, 1, 1, 1, 1, 1, 1, -1, -1, -1, 1, 1,
-        -1, -1, -1, 1
+         1, -1, -1, -1,  1,
+         1, -1, -1, -1,  1,
+         1,  1,  1,  1,  1,
+         1, -1, -1, -1,  1,
+         1, -1, -1, -1,  1
     ],
     "O": [
-        1, 1, 1, 1, 1, 1, -1, -1, -1, 1, 1, -1, -1, -1, 1, 1, -1, -1, -1, 1, 1,
-        1, 1, 1, 1
+         1,  1,  1,  1,  1,
+         1, -1, -1, -1,  1,
+         1, -1, -1, -1,  1,
+         1, -1, -1, -1,  1,
+         1,  1,  1,  1,  1
     ],
     "N": [
-        1, -1, -1, -1, 1, 1, 1, -1, -1, 1, 1, -1, 1, -1, 1, 1, -1, -1, 1, 1, 1,
-        -1, -1, -1, 1
+         1, -1, -1, -1,  1,
+         1,  1, -1, -1,  1,
+         1, -1,  1, -1,  1,
+         1, -1, -1,  1,  1,
+         1, -1, -1, -1,  1
     ]
 }
 
@@ -78,15 +96,17 @@ n_side = 5
 # No of neurons
 n_neurons = n_side * n_side
 
+# random number generator
+rng = np.random.default_rng(seed=42)
+
 train_data = [np.array(d) for d in perfect_data.values()][:n_train]
 
 # Generate test data by adding noise to train data
 test_data = []
 for d in range(n_test):
-    r_i = np.random.randint(0, n_train)
+    r_i = rng.integers(0, n_train)
     base_pattern = np.array(train_data[r_i])
-    noise = 1 * (np.random.random(base_pattern.shape) > distort)
-    np.place(noise, noise == 0, -1)
+    noise = np.where(rng.random(base_pattern.shape) > distort, 1, -1)
     noisy_pattern = np.multiply(base_pattern, noise)
     test_data.append((base_pattern, noisy_pattern))
 
@@ -98,8 +118,7 @@ def train(neu, training_data):
     w = np.zeros([neu, neu])
     for data in training_data:
         w += np.outer(data, data)
-    for diag in range(neu):
-        w[diag][diag] = 0
+    np.fill_diagonal(w, 0)
     return w
 
 
@@ -126,7 +145,7 @@ def retrieve_pattern(weights, data, steps=10):
 
     for _ in range(steps):
         for i in range(len(res)):
-            raw_v = np.dot(weights[i], res)
+            raw_v = weights[i] @ res
             if raw_v > 0:
                 res[i] = 1
             else:
@@ -141,7 +160,7 @@ W = train(n_neurons, train_data)
 accuracy, op_imgs = test(W, test_data)
 
 # Print accuracy
-print("Accuracy of the network is %f" % (accuracy * 100))
+print(f"Accuracy of the network is {accuracy * 100:f}")
 
 # Plot test result
 plot_images(op_imgs, "Reconstructed Data", n_train_disp)
