@@ -140,9 +140,11 @@ def predict(input_features, i_h_weights, h_o_weights):
 
 print("*********** Train ***********")
 
-# Initial Random Weights
+# Initial Random Weights and Velocity vectors
 V = rng.normal(scale=0.1, size=(n_input_layers, n_hidden_layers))
 W = rng.normal(scale=0.1, size=(n_hidden_layers, n_output_layers))
+delta_V = np.zeros_like(V)
+delta_W = np.zeros_like(W)
 
 # Training-set
 X = features_train
@@ -155,9 +157,11 @@ for epoch in range(n_epoch):
     for i in range(X.shape[0]):
         loss, grad_V, grad_W = train(X[i], T[i], V, W)
 
-        # Adjust Weights
-        V -= learning_rate * grad_V + momentum * grad_V
-        W -= learning_rate * grad_W + momentum * grad_W
+        # Adjust Weights (SGD + accumulated velocity / momentum)
+        delta_V = learning_rate * grad_V + momentum * delta_V
+        V -= delta_V
+        delta_W = learning_rate * grad_W + momentum * delta_W
+        W -= delta_W
 
         tr_err.append(loss)
 
