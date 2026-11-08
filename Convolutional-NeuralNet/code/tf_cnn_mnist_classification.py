@@ -1,5 +1,6 @@
 # Import dependencies
 
+import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 
@@ -134,5 +135,26 @@ for i in range(train_examples // batch_size):
 
 print("*********** Test ***********")
 
-acc = compute_accuracy(model(x_test), y_test)
+test_output = model(x_test)
+acc = compute_accuracy(test_output, y_test)
 print("Final Accuracy = %f" % (acc * 100))
+
+# Plot output
+
+# function to plot the predictions
+def plot_predictions(images, labels, predictions):
+    fig = plt.figure(figsize=(10, 5))
+    images = np.array(images).reshape(-1, 28, 28)
+    for i in range(len(images)):
+        ax = fig.add_subplot(2, 5, i + 1)
+        ax.matshow(images[i], cmap="gray")
+        plt.xticks([])
+        plt.yticks([])
+        ax.set_title("Pred: %d\nTrue: %d" % (predictions[i], labels[i]),
+                     color=("green" if predictions[i] == labels[i] else "red"))
+
+
+predictions = np.argmax(test_output[:10].numpy(), axis=1)
+
+plot_predictions(x_test[:10], y_test_raw[:10], predictions)
+plt.show()

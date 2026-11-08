@@ -1,6 +1,8 @@
 # Import dependencies
 
 import os
+import matplotlib.pyplot as plt
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -96,12 +98,38 @@ print("*********** Test ***********")
 model.eval()
 correct = 0
 total = 0
+images = []
+labels = []
+predictions = []
 with torch.no_grad():
     for data, target in test_loader:
         output = model(data)
         pred = output.argmax(dim=1)
         correct += (pred == target).sum().item()
         total += target.size(0)
+        images.append(data)
+        labels.append(target)
+        predictions.append(pred)
 
 acc = correct / total
 print("Final Accuracy = %f" % (acc * 100))
+
+# Plot output
+
+# function to plot the predictions
+def plot_predictions(images, labels, predictions):
+    fig = plt.figure(figsize=(10, 5))
+    images = np.array(images).reshape(-1, 28, 28)
+    for i in range(len(images)):
+        ax = fig.add_subplot(2, 5, i + 1)
+        ax.matshow(images[i], cmap="gray")
+        plt.xticks([])
+        plt.yticks([])
+        ax.set_title("Pred: %d\nTrue: %d" % (predictions[i], labels[i]),
+                     color=("green" if predictions[i] == labels[i] else "red"))
+
+
+plot_predictions(images[-1][-10:].squeeze(1).numpy(),
+                 labels[-1][-10:].numpy(),
+                 predictions[-1][-10:].numpy())
+plt.show()
